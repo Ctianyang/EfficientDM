@@ -1,7 +1,8 @@
 # OVERVIEW
 
 This repository is a modified version of the official implementation of the paper "EFFICIENTDM: Efficient Quantization-Aware Fine-Tuning of Low-Bit Diffusion Models".
-Official [arXiv](https://arxiv.org/abs/2310.03270)
+
+Official [arXiv](https://arxiv.org/abs/2310.03270), Official [code](https://github.com/ThisisBillhe/EfficientDM)
 
 
 ## What's New in This Version:
@@ -65,7 +66,7 @@ python3 quant_scripts/sample_lora_intmodel.py
 python3 quant/generate_samples_4_evaluation_FP.py
 ```
 
-### Step 10(Optional): Comparise the result of FP Model and Qmodel
+### Step 10 (Optional): Comparise the result of FP Model and Qmodel
 ```python
 python3 quant_scripts/cmp.sh
 ```
