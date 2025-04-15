@@ -3,9 +3,8 @@ To collect input data, remember to uncomment line 987-988 in ldm/models/diffusio
 '''
 import sys
 sys.path.append(".")
-sys.path.append('./taming-transformers')
+# sys.path.append('./taming-transformers')
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 import torch
 from omegaconf import OmegaConf
@@ -37,10 +36,10 @@ def get_model():
 if __name__ == '__main__':
     model = get_model()
     sampler = DDIMSampler(model)
-
+    total_img = 2000
     batch_size = 8
 
-    ddim_steps = 250
+    ddim_steps = 100
     ddim_eta = 1.0
     scale = 1.5
 
@@ -48,28 +47,29 @@ if __name__ == '__main__':
 
     with torch.no_grad():
         with model.ema_scope():
-            uc = model.get_learned_conditioning(
-                {model.cond_stage_key: torch.tensor(batch_size*[1000]).to(model.device)}
-                )
-            xc = torch.randint(0,1000,(batch_size,)).to(model.device)
-            c = model.get_learned_conditioning({model.cond_stage_key: xc.to(model.device)})
-            
-            samples_ddim, _ = sampler.sample(S=ddim_steps,
-                                            conditioning=c,
-                                            batch_size=batch_size,
-                                            shape=[3, 64, 64],
-                                            verbose=False,
-                                            unconditional_guidance_scale=scale,
-                                            unconditional_conditioning=uc, 
-                                            eta=ddim_eta)
+            for iter in range(total_img // (batch_size * ddim_steps)):
+                uc = model.get_learned_conditioning(
+                    {model.cond_stage_key: torch.tensor(batch_size*[1000]).to(model.device)}
+                    )
+                xc = torch.randint(0,1000,(batch_size,)).to(model.device)
+                c = model.get_learned_conditioning({model.cond_stage_key: xc.to(model.device)})
+                
+                samples_ddim, _ = sampler.sample(S=ddim_steps,
+                                                conditioning=c,
+                                                batch_size=batch_size,
+                                                shape=[3, 64, 64],
+                                                verbose=False,
+                                                unconditional_guidance_scale=scale,
+                                                unconditional_conditioning=uc, 
+                                                eta=ddim_eta)
 
-            x_samples_ddim = model.decode_first_stage(samples_ddim)
-            x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, 
-                                        min=0.0, max=1.0)
-            all_samples.append(x_samples_ddim)
+                x_samples_ddim = model.decode_first_stage(samples_ddim)
+                x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, 
+                                            min=0.0, max=1.0)
+                all_samples.append(x_samples_ddim)
 
     ## save diffusion input data
     import ldm.globalvar as globalvar   
     input_list = globalvar.getInputList()
-    torch.save(input_list, 'DiffusionInput_{}steps.pth'.format(ddim_steps))
+    torch.save(input_list, f'input/DiffusionInput_{total_img}total_{ddim_steps}steps.pth')
     sys.exit(0)

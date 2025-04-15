@@ -18,7 +18,7 @@ torch.set_grad_enabled(False)
 from omegaconf import OmegaConf
 from ldm.util import instantiate_from_config
 from ldm.models.diffusion.ddim import DDIMSampler
-
+from PIL import Image  
 def load_model_from_config(config, ckpt):
     print(f"Loading model from {ckpt}")
     pl_sd = torch.load(ckpt, map_location="cpu")
@@ -75,16 +75,23 @@ def main():
     # sampler = DDIMSampler(model)
     sampler = DDIMSampler(model, ddim_steps)
 
-    out_path = os.path.join(args.out_dir, f"samples{args.num_samples}steps{ddim_steps}eta{ddim_eta}scale{scale}.npz")
+    # out_path = os.path.join(args.out_dir, f"samples{args.num_samples}steps{ddim_steps}eta{ddim_eta}scale{scale}.npz")
+    base_out_dir = args.out_dir
+    timestamp = time.strftime("%Y%m%d-%H%M%S", time.localtime())
+    output_subdir = os.path.join(base_out_dir, f"run_{timestamp}")
+    if rank == 0:
+        os.makedirs(output_subdir, exist_ok=True)
+        logging.info(f"Output directory: {output_subdir}")
 
     logging.info("sampling...")
     generated_num = torch.tensor(0, device=device)
     if rank == 0:
         all_images = []
         all_labels = []
+        all_images_list = []
         if args.resume:
-            if os.path.exists(out_path):
-                ckpt = np.load(out_path)
+            if os.path.exists(output_subdir):
+                ckpt = np.load(output_subdir)
                 all_images = ckpt['arr_0']
                 all_labels = ckpt['arr_1']
                 assert all_images.shape[0] % args.batch_size == 0, f'Wrong resume checkpoint shape {all_images.shape}'
@@ -155,12 +162,26 @@ def main():
 
                     label_arr = np.concatenate(all_labels, axis=0)
                     label_arr = label_arr[: args.num_samples]
-                    logging.info(f"intermediate results saved to {out_path}")
-                    np.savez(out_path, arr, label_arr)
+                    logging.info(f"intermediate results saved to {output_subdir}")
+                    np.savez(output_subdir, arr, label_arr)
                     del arr
                     del label_arr
         torch.distributed.barrier()
         dist.broadcast(generated_num, 0)
+
+        if rank == 0:
+            current_batch_images = []
+            for samples_per_rank in gathered_samples:
+                current_batch_images.extend(samples_per_rank.cpu().numpy())
+            all_images_list.extend(current_batch_images)
+            for idx_in_batch, img_array in enumerate(current_batch_images):
+                global_idx = len(all_images_list) - len(current_batch_images) + idx_in_batch
+                filename = os.path.join(
+                    output_subdir, f"sample_{global_idx:06d}.png"
+                )
+                Image.fromarray(img_array).save(filename)
+                if idx_in_batch < 5:
+                    logging.info(f"Saved {filename}")
 
     if rank == 0:
         arr = np.concatenate(all_images, axis=0)
@@ -168,7 +189,10 @@ def main():
 
         label_arr = np.concatenate(all_labels, axis=0)
         label_arr = label_arr[: args.num_samples]
-
+        out_path = os.path.join(
+            output_subdir,
+            f"samples{args.num_samples}_steps{ddim_steps}_eta{ddim_eta}_scale{scale}.npz"
+        )
         logging.info(f"saving to {out_path}")
         np.savez(out_path, arr, label_arr)
 
