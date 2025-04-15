@@ -1,8 +1,18 @@
-# EFFICIENTDM: EFFICIENT QUANTIZATION-AWARE FINE-TUNING OF LOW-BIT DIFFUSION MODELS
+# OVERVIEW
 
-This repository provides the implementation for our paper "EFFICIENTDM: Efficient Quantization-Aware Fine-Tuning of Low-Bit Diffusion Models". Our approach introduces a novel method for fine-tuning low-bit diffusion models, focusing on efficiency and performance.
+This repository is a modified version of the official implementation of the paper "EFFICIENTDM: Efficient Quantization-Aware Fine-Tuning of Low-Bit Diffusion Models".
+Official [arXiv](https://arxiv.org/abs/2310.03270)
 
-[arXiv](https://arxiv.org/abs/2310.03270) | [BibTeX](#bibtex)
+
+## What's New in This Version:
+-  Added visualization for full-precision (FP) models .
+-  Added evaluator for IS and FID.
+-  Added visualization tools for comparing outputs between FP models and quantized models .
+## TODO List: 
+- Implement Quantization-Aware Training (QAT) mode as an alternative to the current data-free approach.
+- Improve Sampling Strategy Using [BitsFusion](https://arxiv.org/abs/2406.04333).
+- Mixed Precision Quantization with [BitsFusion](https://arxiv.org/abs/2406.04333).
+- Layer-wise Sensitivity Analysis Interface.
 
 ## Getting Started
 
@@ -36,27 +46,29 @@ python3 quant_scripts/save_naive_2_intmodel.py
 
 ### Step 6: Fine-Tune with EfficientDM
 ```python
-python3 quant_scripts/train_efficientdm.py
-
+python3 quant_scripts/qalora.sh
 ```
 
 ### Step 7 (Optional): Downsample TALSQ Parameters
 Optionally, downsample the Temporal Activation LSQ parameters for sampling with fewer steps.
 ```python
 python3 quant_scripts/downsample_talsq_ckpt.py
-
 ```
 
 ### Step 8: Sample with the EfficientDM Model
 ```python
 python3 quant_scripts/sample_lora_intmodel.py
-
 ```
-## Fine-tuned EfficientDM Weights
 
-| Model | Dataset | Link |
-| ------- | ------- |------- |
-|  LDM-4  | ImageNet|https://drive.google.com/file/d/1xSGY5lXnBhXK9beq3j1NUXkFRr76mDLO/view|
+### Step 9 (Optional): Sample with FP Model and visualize the result
+```python
+python3 quant/generate_samples_4_evaluation_FP.py
+```
+
+### Step 10(Optional): Comparise the result of FP Model and Qmodel
+```python
+python3 quant_scripts/cmp.sh
+```
 
 ## BibTeX
 If you find this work useful for your research, please consider citing:
